@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* 웹폰트 (예: Inter) 설정 */
+@layer base {
+  html {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
