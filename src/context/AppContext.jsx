@@ -51,8 +51,8 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [isAuthReady, setIsAuthReady] = useState(false);
     
-    // UI State
-    const [currentView, setCurrentView] = useState('home');
+    // UI State - 해시 기반 라우팅을 위해 useState 이름 변경
+    const [currentView, setCurrentViewState] = useState('home');
     const [selectedProduct, setSelectedProduct] = useState(null);
 
     // Auth Modal State
@@ -75,7 +75,27 @@ export const AppProvider = ({ children }) => {
         businessRegistration: ''
     });
     const [authLoading, setAuthLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false); // ✅ 추가
+    const [showPassword, setShowPassword] = useState(false);
+
+    // --- 해시 기반 라우팅 ---
+    const setCurrentView = useCallback((view) => {
+        if (!view) return;
+        window.location.hash = view;
+        window.history.pushState({ view }, '', `#${view}`);
+        setCurrentViewState(view);
+    }, []);
+
+    useEffect(() => {
+        const hashView = window.location.hash?.substring(1) || 'home';
+        setCurrentViewState(hashView);
+
+        const handlePopState = () => {
+            const newView = window.location.hash?.substring(1) || 'home';
+            setCurrentViewState(newView);
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     // --- Authentication Logic ---
     useEffect(() => {
@@ -129,8 +149,9 @@ export const AppProvider = ({ children }) => {
         return () => unsubscribe();
     }, []);
 
-    // --- Data Fetching ---
+    // ... (나머지 코드는 동일하게 유지)
 
+    // --- Data Fetching ---
     // Products (Public Data)
     useEffect(() => {
         if (!isAuthReady) return;
@@ -196,7 +217,7 @@ export const AppProvider = ({ children }) => {
             company: '',
             businessRegistration: ''
         });
-        setShowPassword(false); // ✅ 추가
+        setShowPassword(false);
     };
 
     // --- Auth Actions ---
@@ -291,7 +312,7 @@ export const AppProvider = ({ children }) => {
             console.error("Sign Out Failed:", error);
             alert(`Sign Out Failed: ${error.message}`);
         }
-    }, []);
+    }, [setCurrentView]);
 
     // --- Cart Actions ---
     const addToCart = useCallback(async (product, quantity) => {
@@ -329,7 +350,7 @@ export const AppProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [userId, cart]);
+    }, [userId, cart, setCurrentView]);
 
     const updateCartQuantity = useCallback(async (cartItemId, newQuantity) => {
         if (newQuantity < 1) {
@@ -363,8 +384,6 @@ export const AppProvider = ({ children }) => {
         try {
             const total = cart.reduce((sum, item) => sum + calculateTotalPrice(item.moqPrices, item.quantity), 0);
             
-            // IMPORTANT: Create order with pending_payment status
-            // Actual payment processing should happen on server with Stripe
             const order = {
                 buyerId: user.uid,
                 buyerEmail: user.email,
@@ -376,7 +395,7 @@ export const AppProvider = ({ children }) => {
                     totalPrice: calculateTotalPrice(item.moqPrices, item.quantity),
                 })),
                 totalAmount: total,
-                status: 'pending_payment', // Critical: Don't confirm until payment succeeds
+                status: 'pending_payment',
                 shippingAddress: {
                     firstName: user.firstName,
                     lastName: user.lastName,
@@ -389,18 +408,14 @@ export const AppProvider = ({ children }) => {
                 currency: 'CAD'
             };
 
-            // Create order document
             const orderRef = await addDoc(collection(db, 'orders'), order);
             
-            // Clear cart using batch write for atomicity
             const batch = writeBatch(db);
             cart.forEach(item => {
                 batch.delete(doc(db, 'cart', item.id));
             });
             await batch.commit();
 
-            // TODO: Call server function to create Stripe PaymentIntent
-            // This should be done via a Cloud Function to keep Stripe keys secure
             alert('Order created! Redirecting to payment...');
             setCurrentView('buyer-orders');
 
@@ -410,7 +425,7 @@ export const AppProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [user, cart]);
+    }, [user, cart, setCurrentView]);
 
     // --- Product Upload Action ---
     const uploadProduct = useCallback(async (productData, images) => {
@@ -421,9 +436,7 @@ export const AppProvider = ({ children }) => {
 
         setLoading(true);
         try {
-            // Upload images with random filenames for security
             const imageUploadPromises = images.map((file, index) => {
-                // Generate cryptographically secure random filename
                 const randomString = Array.from(crypto.getRandomValues(new Uint8Array(16)))
                     .map(b => b.toString(16).padStart(2, '0'))
                     .join('');
@@ -433,17 +446,15 @@ export const AppProvider = ({ children }) => {
             });
             const imageURLs = await Promise.all(imageUploadPromises);
 
-            // Validate MOQ tiers before submission
             const normalizedMoqPrices = normalizeAndValidateTiers(productData.moqPrices);
 
-            // Add product to Firestore
             await addDoc(collection(db, 'products'), {
                 ...productData,
                 images: imageURLs,
                 moqPrices: normalizedMoqPrices,
                 sellerId: user.uid,
                 sellerName: `${user.firstName} ${user.lastName}`.trim() || user.email.split('@')[0],
-                status: 'pending', // Requires admin approval
+                status: 'pending',
                 createdAt: serverTimestamp(),
             });
 
@@ -455,7 +466,7 @@ export const AppProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, setCurrentView]);
 
     // Context Value
     const value = {
@@ -472,9 +483,9 @@ export const AppProvider = ({ children }) => {
         authForm, 
         authLoading, 
         authStep,
-        showPassword, // ✅ 추가
-        setShowPassword, // ✅ 추가
-        setCurrentView, 
+        showPassword,
+        setShowPassword,
+        setCurrentView, // ✅ 해시 기반 라우팅 함수
         setSelectedProduct, 
         setAuthMode, 
         setAuthForm, 
@@ -495,7 +506,6 @@ export const AppProvider = ({ children }) => {
         checkout,
         uploadProduct,
         isAuthReady,
-        // ✅ Seller/Buyer 구분 헬퍼 함수
         isSellerUser: user?.userType === 'seller' && user?.status === 'active',
         isBuyerUser: user?.userType === 'buyer'
     };

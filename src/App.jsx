@@ -14,6 +14,13 @@ import BuyerOrdersPage from './pages/BuyerOrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import AuthModal from './components/AuthModal';
 import BecomeSellerPage from './pages/BecomeSellerPage';
+import AboutUsPage from './pages/AboutUsPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import YouthPage from './pages/YouthPage';
+import DisclaimerPage from './pages/DisclaimerPage';
+import EmailPage from './pages/EmailPage';
+import SellerInquiryPage from './pages/SellerInquiryPage';
 
 const AppContent = () => {
   const { currentView, setCurrentView } = useApp();
@@ -30,6 +37,13 @@ const AppContent = () => {
       case 'all-products': return <AllProductsPage />;
       case 'recommended-products': return <RecommendedProductsPage />;
       case 'product-detail': return <ProductDetailPage />;
+      case 'about-us': return <AboutUsPage />;
+      case 'terms': return <TermsPage />;
+      case 'privacy': return <PrivacyPage />;
+      case 'youth': return <YouthPage />;
+      case 'disclaimer': return <DisclaimerPage />;
+      case 'email': return <EmailPage />;
+      case 'seller-inquiry': return <SellerInquiryPage />;
       
       // 카테고리 페이지
       case 'category-kitchen': 

@@ -5,7 +5,7 @@ const Footer = () => {
   const { setCurrentView } = useApp();
   
   const footerLinks = [
-    { name: 'About Us', view: 'about' },
+    { name: 'About Us', view: 'about-us' },
     { name: 'Terms of Service', view: 'terms' },
     { name: 'Privacy Policy', view: 'privacy' },
     { name: 'Youth Protection Policy', view: 'youth' },
